@@ -6,7 +6,6 @@
 !/README.md
 !/requirements.txt
 !/requirements-normalization.txt
-!/two_platform_import.example.json
 
 # Top-level processing entry points
 !/*.py
@@ -62,4 +61,3 @@
 /role_normalization_project/config/*
 !/role_normalization_project/config/*.json
 !/role_normalization_project/config/*.md
-

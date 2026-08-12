@@ -15,7 +15,6 @@
 - [可信与可审计设计](#可信与可审计设计)
 - [快速开始：本地 SQLite 模式](#快速开始本地-sqlite-模式)
 - [Neo4j 增量处理模式](#neo4j-增量处理模式)
-- [双平台增量导入](#双平台增量导入)
 - [五维能力提取](#五维能力提取)
 - [岗位归一化](#岗位归一化)
 - [新岗位发现工作台](#新岗位发现工作台)
@@ -241,34 +240,6 @@ python run_trusted_graph_agent.py serve `
 
 `--backend auto` 会在提供可用 Neo4j 配置时优先选择 Neo4j，否则使用输出目录中的 SQLite 数据库。
 
-## 双平台增量导入
-
-复制并编辑安全示例：
-
-```powershell
-Copy-Item two_platform_import.example.json two_platform_import.json
-```
-
-先做字段和格式预检：
-
-```powershell
-python import_two_platforms.py `
-  --config two_platform_import.json `
-  --neo4j-config config\neo4j_connection.json `
-  --dry-run
-```
-
-确认后运行并发布：
-
-```powershell
-python import_two_platforms.py `
-  --config two_platform_import.json `
-  --neo4j-config config\neo4j_connection.json `
-  --publish
-```
-
-两个平台使用独立来源命名空间，避免同名文件发生 `RawSourceFile` 标识冲突。流程支持增量重跑；只有通过验证的结果才应切换为活动版本。
-
 ## 五维能力提取
 
 如果原始 JD 没有“能力提取结果”或 `ability_analysis` 字段，可以通过 OpenAI 兼容接口预先生成五维能力结果：
@@ -419,7 +390,6 @@ $env:IFLYTEK_MAAS_API_KEY = "your-api-key"
 .
 ├── run_trusted_graph_agent.py          # 本地构建、API 和全景页入口
 ├── run_incremental_knowledge_graph.py  # Neo4j 完整增量流水线
-├── import_two_platforms.py             # 双平台预检、增量处理和发布
 ├── extract_five_dimension_abilities.py # 可选的大模型五维能力提取
 ├── requirements.txt
 ├── config/
@@ -441,7 +411,7 @@ $env:IFLYTEK_MAAS_API_KEY = "your-api-key"
 - CSV、JSONL、数据库和图谱导出等原始或派生数据
 - `output/`、日志、缓存、报告和中间结果
 - `.venv/`、本地模型和下载缓存
-- `config/neo4j_connection.json`、`raw_jd_layer/config.json`、`two_platform_import.json`
+- `config/neo4j_connection.json`、`raw_jd_layer/config.json`
 - `.env`、密钥、密码和本机专用启动文件
 
 提交前建议执行：

@@ -8,8 +8,32 @@
 ![Data](https://img.shields.io/badge/data-not%20included-informational)
 ![Storage](https://img.shields.io/badge/storage-SQLite%20%7C%20Neo4j-4581C3)
 
+## 队员快速查看前端
+
+如果目的是统一前端风格，不需要复制完整的 12 GB Neo4j 数据库，也不需要运行原始数据处理流水线。
+
+项目负责人需要私下发送脱敏展示包 `trusted-job-graph-display.zip`。队员克隆本仓库后，在 Neo4j 中新建一个空数据库，并执行：
+
+```powershell
+Copy-Item config\neo4j_connection.example.json config\neo4j_connection.json
+
+python display_graph_handoff.py import `
+  --package "C:\path\to\display_graph.json" `
+  --neo4j-config config\neo4j_connection.json
+
+python display_graph_handoff.py serve `
+  --neo4j-config config\neo4j_connection.json
+```
+
+浏览器打开 <http://127.0.0.1:8010/>。
+
+展示包只包含岗位、岗位族、归一化技能、岗位画像和时间快照，不包含原始 JD、真实公司、薪资、招聘链接、证据原文及处理过程中的中间节点。技能证据详情为空属于预期行为。
+
+完整步骤和数据边界见 [队员前端联调说明](TEAM_HANDOFF.md)。展示包属于私下交付物，不上传到公开 GitHub。
+
 ## 目录
 
+- [队员快速查看前端](#队员快速查看前端)
 - [项目能力](#项目能力)
 - [系统架构](#系统架构)
 - [可信与可审计设计](#可信与可审计设计)

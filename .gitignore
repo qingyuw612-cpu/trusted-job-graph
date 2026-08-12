@@ -4,6 +4,7 @@
 # Repository metadata and setup
 !/.gitignore
 !/README.md
+!/TEAM_HANDOFF.md
 !/requirements.txt
 !/requirements-normalization.txt
 

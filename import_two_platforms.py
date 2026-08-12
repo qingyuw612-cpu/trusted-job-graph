@@ -154,6 +154,12 @@ def main() -> None:
         default=PROJECT_ROOT / "config" / "neo4j_connection.json",
     )
     parser.add_argument("--batch-size", type=int, default=500)
+    parser.add_argument(
+        "--processing-batch-size",
+        type=int,
+        default=100,
+        help="能力处理单事务记录数；能力数组较大时应小于原始导入批次",
+    )
     parser.add_argument("--llm-endpoint", default="")
     parser.add_argument("--force-import", action="store_true")
     parser.add_argument("--publish", action="store_true", help="验证成功后切换正式活动图谱")
@@ -239,7 +245,7 @@ def main() -> None:
             process_report = report_dir / f"{key}_process.json"
             process_arguments = [
                 "--neo4j-config", str(neo4j_config),
-                "--batch-size", str(max(1, args.batch_size)),
+                "--batch-size", str(max(1, min(args.processing_batch_size, 200))),
                 "--ingest-run-id", str(ingest["run_id"]),
                 "--force",
                 "--report", str(process_report),
@@ -252,6 +258,13 @@ def main() -> None:
                 *process_arguments,
             )
             process = require_completed(process_report, f"{source.name} 能力处理")
+            imported_rows = int((ingest.get("metrics") or {}).get("rows_valid") or 0)
+            processed_rows = int((process.get("metrics") or {}).get("rows_read") or 0)
+            if imported_rows > 0 and processed_rows == 0:
+                raise RuntimeError(
+                    f"{source.name} 已导入 {imported_rows} 条，但能力处理读取 0 条；"
+                    "为防止漏数据，流程已禁止发布。"
+                )
             if int((process.get("metrics") or {}).get("needs_llm") or 0) > 0:
                 raise RuntimeError(
                     f"{source.name} 有 {process['metrics']['needs_llm']} 条记录缺少能力分析；"

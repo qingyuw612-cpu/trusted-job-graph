@@ -54,6 +54,7 @@ class Neo4jGraphRepository:
             config.get("database", "neo4j"),
             config.get("username", "neo4j"),
             config["password"],
+            timeout=max(5, int(config.get("timeout_seconds", 120))),
         )
 
     def health(self) -> dict:

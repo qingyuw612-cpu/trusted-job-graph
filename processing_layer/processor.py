@@ -61,6 +61,8 @@ CONSTRAINTS = (
     "CREATE CONSTRAINT ability_candidate_id IF NOT EXISTS FOR (n:AbilityCandidate) REQUIRE n.ability_id IS UNIQUE",
     "CREATE CONSTRAINT processing_review_id IF NOT EXISTS FOR (n:ProcessingReview) REQUIRE n.review_id IS UNIQUE",
     "CREATE CONSTRAINT processing_run_id IF NOT EXISTS FOR (n:JDProcessingRun) REQUIRE n.run_id IS UNIQUE",
+    "CREATE INDEX raw_jd_ingest_cursor IF NOT EXISTS FOR (n:RawJDVersion) "
+    "ON (n.last_ingest_run_id, n.version_id)",
 )
 
 
@@ -105,6 +107,29 @@ LIMIT $batch_size
 """
 
 
+FETCH_CURRENT_INGEST_FORCE_QUERY = """
+MATCH (raw:RawJDVersion)
+USING INDEX raw:RawJDVersion(last_ingest_run_id, version_id)
+WHERE raw.last_ingest_run_id = $ingest_run_id
+  AND raw.version_id > $cursor
+MATCH (job:RawJob)-[:CURRENT_VERSION]->(raw)
+RETURN job.raw_uid AS raw_uid, properties(raw) AS raw
+ORDER BY raw.version_id
+LIMIT $batch_size
+"""
+
+
+FETCH_ALL_VERSIONS_INGEST_FORCE_QUERY = """
+MATCH (raw:RawJDVersion)
+USING INDEX raw:RawJDVersion(last_ingest_run_id, version_id)
+WHERE raw.last_ingest_run_id = $ingest_run_id
+  AND raw.version_id > $cursor
+RETURN raw.raw_uid AS raw_uid, properties(raw) AS raw
+ORDER BY raw.version_id
+LIMIT $batch_size
+"""
+
+
 WRITE_BATCH_QUERY = """
 UNWIND $rows AS row
 MATCH (raw:RawJDVersion {version_id: row.version_id})
@@ -116,11 +141,11 @@ SET raw.processing_version = $processor_version,
     raw.processed_at = $now
 WITH row, processed
 OPTIONAL MATCH (processed)-[oldAbility:HAS_ABILITY]->(:AbilityCandidate)
-DELETE oldAbility
-WITH row, processed
+WITH row, processed, collect(oldAbility) AS oldAbilities
+FOREACH (relationship IN oldAbilities | DELETE relationship)
 OPTIONAL MATCH (processed)-[oldReview:HAS_REVIEW]->(:ProcessingReview)
-DELETE oldReview
-WITH row, processed
+WITH row, processed, collect(oldReview) AS oldReviews
+FOREACH (relationship IN oldReviews | DELETE relationship)
 FOREACH (ability IN row.abilities |
     MERGE (candidate:AbilityCandidate {ability_id: ability.ability_id})
     SET candidate.name = ability.name,
@@ -336,7 +361,14 @@ class IncrementalProcessor:
         self.verifier = EvidenceVerifier(registry)
         self.llm_extractor = WebhookLLMExtractor(llm_endpoint) if llm_endpoint else None
         self.batch_size = max(1, min(batch_size, 500))
-        if force:
+        self.ingest_run_id = ingest_run_id.strip()
+        if force and self.ingest_run_id:
+            self.fetch_query = (
+                FETCH_ALL_VERSIONS_INGEST_FORCE_QUERY
+                if all_versions
+                else FETCH_CURRENT_INGEST_FORCE_QUERY
+            )
+        elif force:
             self.fetch_query = (
                 FETCH_ALL_VERSIONS_FORCE_QUERY
                 if all_versions
@@ -347,7 +379,6 @@ class IncrementalProcessor:
                 FETCH_ALL_VERSIONS_QUERY if all_versions else FETCH_CURRENT_QUERY
             )
         self.force = force
-        self.ingest_run_id = ingest_run_id.strip()
 
     def query_with_retry(
         self,
